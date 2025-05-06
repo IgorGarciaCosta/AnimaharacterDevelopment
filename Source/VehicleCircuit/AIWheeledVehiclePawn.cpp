@@ -55,18 +55,67 @@ float AAIWheeledVehiclePawn::CalculateFowardVectorOffset(USplineComponent* Splin
 
 void AAIWheeledVehiclePawn::FindNextTargetPoint(USplineComponent* Spline)
 {
-    FVector VehicleWithForwardOffset = GetActorLocation() + (GetActorForwardVector() * CalculateFowardVectorOffset(Spline));
+    if (!Spline) return;
 
-    FVector NextLoc = Spline->FindLocationClosestToWorldLocation(VehicleWithForwardOffset, ESplineCoordinateSpace::World);
+    // Calcula offset frontal dinâmico (você tem essa função)
+    float ForwardVectorOffset = 300;// CalculateFowardVectorOffset(Spline);
 
-    float MultiplyFactor = 400;
-    if (bDriveOnRightLane) {
-        NextLoc = NextLoc+(GetActorRightVector() * MultiplyFactor);
+    // Ponto ajustado para frente da posição do ator
+    FVector VehicleWithForwardOffset = GetActorLocation() + (GetActorForwardVector() * ForwardVectorOffset);
+
+    // Encontra a distância mais próxima da posição com offset à frente
+    float ClosestInputKey = Spline->FindInputKeyClosestToWorldLocation(VehicleWithForwardOffset);
+    float DistanceAlongSpline = Spline->GetDistanceAlongSplineAtSplineInputKey(ClosestInputKey);
+
+
+    // Define distância do próximo ponto ~  ForwardVectorOffset (pode ajustar esse valor para controle de quão à frente olhar)
+    float NextDistance;
+
+    // Obter o comprimento total da spline para controle de wrap
+    float SplineLength = Spline->GetSplineLength();
+
+    if (bMoveClockwise)
+    {
+        //bDriveOnRightLane = !bDriveOnRightLane;
+        // Avança na spline no sentido horário
+        NextDistance = DistanceAlongSpline + ForwardVectorOffset;
+        if (NextDistance > SplineLength)
+        {
+            NextDistance -= SplineLength; // wrap-around
+        }
     }
-    else {
-        NextLoc = NextLoc + (GetActorRightVector() * (MultiplyFactor*-1));
+    else
+    {
+        // Move para trás na spline (anti-horário)
+        NextDistance = DistanceAlongSpline - ForwardVectorOffset;
+        if (NextDistance < 0.f)
+        {
+            NextDistance += SplineLength; // wrap-around
+        }
     }
 
+    // Obtém a posição do próximo ponto na spline baseado na distância calculada
+    FVector NextLoc = Spline->GetLocationAtDistanceAlongSpline(NextDistance, ESplineCoordinateSpace::World);
+
+    // Multiplicador fixo para distância lateral (igual antes)
+    float LateralOffsetAmount = 0.f;
+    bDriveOnRightLane ? LateralOffsetAmount = 400.f : LateralOffsetAmount = -400.f;
+
+    // Ajusta lateralidade — direita ou esquerda
+    FVector LateralOffset = GetActorRightVector() * LateralOffsetAmount;
+
+    // Se estiver no sentido antihorário, inverta o lado da lateralização para fazer sentido na pista
+    if (!bMoveClockwise)
+    {
+        LateralOffset *= -1.f;
+    }
+
+    // Aplicar offset lateral no ponto
+    NextLoc += LateralOffset;
+
+    NextSplinePoint = NextLoc;
+
+    // Para debug visual
     DrawDebugSphere(
         GetWorld(),
         NextLoc,
@@ -79,7 +128,33 @@ void AAIWheeledVehiclePawn::FindNextTargetPoint(USplineComponent* Spline)
         1.0f
     );
 
+    /*FVector VehicleWithForwardOffset = GetActorLocation() + (GetActorForwardVector() * CalculateFowardVectorOffset(Spline));
+
+    FVector NextLoc = Spline->FindLocationClosestToWorldLocation(VehicleWithForwardOffset, ESplineCoordinateSpace::World);
+
+    float MultiplyFactor = 400;
+    if (bDriveOnRightLane) {
+        NextLoc = NextLoc+(GetActorRightVector() * MultiplyFactor);
+    }
+    else {
+        NextLoc = NextLoc + (GetActorRightVector() * (MultiplyFactor*-1));
+    }
+
     NextSplinePoint = NextLoc;
+
+    DrawDebugSphere(
+        GetWorld(),
+        NextLoc,
+        100,
+        12,
+        FColor::Blue,
+        false,
+        0,
+        0,
+        1.0f
+    );*/
+
+    
 }
 
 void AAIWheeledVehiclePawn::ResetIncomingCollision()
