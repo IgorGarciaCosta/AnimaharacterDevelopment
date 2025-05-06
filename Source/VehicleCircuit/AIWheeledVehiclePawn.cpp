@@ -50,6 +50,36 @@ void AAIWheeledVehiclePawn::OnEndOverlap(UPrimitiveComponent* OverlappedComp, AA
 float AAIWheeledVehiclePawn::CalculateFowardVectorOffset(USplineComponent* Spline)
 {
    //do some logic to make this work
+    return 1200;
+}
+
+void AAIWheeledVehiclePawn::FindNextTargetPoint(USplineComponent* Spline)
+{
+    FVector VehicleWithForwardOffset = GetActorLocation() + (GetActorForwardVector() * CalculateFowardVectorOffset(Spline));
+
+    FVector NextLoc = Spline->FindLocationClosestToWorldLocation(VehicleWithForwardOffset, ESplineCoordinateSpace::World);
+
+    float MultiplyFactor = 400;
+    if (bDriveOnRightLane) {
+        NextLoc = NextLoc+(GetActorRightVector() * MultiplyFactor);
+    }
+    else {
+        NextLoc = NextLoc + (GetActorRightVector() * (MultiplyFactor*-1));
+    }
+
+    DrawDebugSphere(
+        GetWorld(),
+        NextLoc,
+        100,
+        12,
+        FColor::Blue,
+        false,
+        0,
+        0,
+        1.0f
+    );
+
+    NextSplinePoint = NextLoc;
 }
 
 void AAIWheeledVehiclePawn::ResetIncomingCollision()

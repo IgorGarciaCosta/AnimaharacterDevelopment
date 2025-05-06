@@ -33,6 +33,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spline")
     bool bDriveOnRightLane = true;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spline")
+    bool bMoveClockwise = true;
+
     // Timer handle for retriggerable delay
     FTimerHandle IncomingCollisionTimerHandle;
 
@@ -53,6 +56,9 @@ public:
 
     UFUNCTION(BlueprintCallable)
     float CalculateFowardVectorOffset(USplineComponent* Spline);
+
+    UFUNCTION(BlueprintCallable)
+    void FindNextTargetPoint(USplineComponent* Spline);
 
     // Retriggerable delay callback
     void ResetIncomingCollision();
