@@ -28,6 +28,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spline")
     FVector NextSplinePoint = FVector(0, 0, 0);
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spline")
+    bool bDriveOnRightLane = true;
+
     // Timer handle for retriggerable delay
     FTimerHandle IncomingCollisionTimerHandle;
 
