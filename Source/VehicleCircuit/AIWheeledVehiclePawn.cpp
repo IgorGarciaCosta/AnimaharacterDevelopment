@@ -88,13 +88,6 @@ void AAIWheeledVehiclePawn::ManageVehicleSteering()
     // Agora aplique o steering e throttle
 
     Steer(SteeringValue);
-    //UWheeledVehicleMovementComponent* VehicleMovement = GetVehicleMovementComponent();
-    //if (VehicleMovement)
-    //{
-    //    VehicleMovement->SetSteeringInput(SteeringValue);
-
-    //    // Manter acelerando sempre
-    //    VehicleMovement->SetThrottleInput(1.0f);
-    //}
+    
 
 }
