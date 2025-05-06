@@ -22,6 +22,12 @@ void AAIWheeledVehiclePawn::BeginPlay()
     PreCollisionDetector->OnComponentEndOverlap.AddDynamic(this, &AAIWheeledVehiclePawn::OnEndOverlap);
 }
 
+void AAIWheeledVehiclePawn::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+    ManageVehicleSteering();
+}
+
 void AAIWheeledVehiclePawn::OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
     UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
     bool bFromSweep, const FHitResult& SweepResult)
@@ -60,4 +66,35 @@ void AAIWheeledVehiclePawn::StartRetriggerableDelay(float Duration)
         // Start new timer
         GetWorld()->GetTimerManager().SetTimer(IncomingCollisionTimerHandle, this, &AAIWheeledVehiclePawn::ResetIncomingCollision, Duration, false);
     }
+}
+
+void AAIWheeledVehiclePawn::ManageVehicleSteering()
+{
+    if (NextSplinePoint.IsZero()) return;
+
+
+    FVector VehicleLocation = GetActorLocation();
+    FVector TargetLocation = NextSplinePoint; // posição do próximo ponto
+
+    FVector ForwardVector = GetActorForwardVector();
+    FVector DirectionToTarget = (TargetLocation - VehicleLocation).GetSafeNormal();
+
+    float Dot = FVector::DotProduct(ForwardVector, DirectionToTarget);
+    FVector Cross = FVector::CrossProduct(ForwardVector, DirectionToTarget);
+
+    // O valor do steering é baseado no sinal do componente Z do vetor cross product
+    float SteeringValue = FMath::Clamp(Cross.Z, -1.0f, 1.0f);
+
+    // Agora aplique o steering e throttle
+
+    Steer(SteeringValue);
+    //UWheeledVehicleMovementComponent* VehicleMovement = GetVehicleMovementComponent();
+    //if (VehicleMovement)
+    //{
+    //    VehicleMovement->SetSteeringInput(SteeringValue);
+
+    //    // Manter acelerando sempre
+    //    VehicleMovement->SetThrottleInput(1.0f);
+    //}
+
 }

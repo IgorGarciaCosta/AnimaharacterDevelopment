@@ -16,6 +16,8 @@ public:
 
     virtual void BeginPlay() override;
 
+    virtual void Tick(float DeltaTime) override;
+
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Collision")
     UBoxComponent* PreCollisionDetector;
 
@@ -23,8 +25,17 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Collision")
     bool IncomingCollision = false;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spline")
+    FVector NextSplinePoint = FVector(0, 0, 0);
+
     // Timer handle for retriggerable delay
     FTimerHandle IncomingCollisionTimerHandle;
+
+    UFUNCTION(BlueprintImplementableEvent)
+    void Steer(float steer);
+
+    UFUNCTION(BlueprintImplementableEvent)
+    void Accelerate(float speed);
 
     UFUNCTION()
     void OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
@@ -40,4 +51,8 @@ public:
 
     // Starts/reset the retriggerable delay timer
     void StartRetriggerableDelay(float Duration);
+
+private:
+
+    void ManageVehicleSteering();
 };
