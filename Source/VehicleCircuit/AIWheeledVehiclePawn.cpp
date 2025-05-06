@@ -47,6 +47,11 @@ void AAIWheeledVehiclePawn::OnEndOverlap(UPrimitiveComponent* OverlappedComp, AA
     // Optionally handle end overlap if needed
 }
 
+float AAIWheeledVehiclePawn::CalculateFowardVectorOffset(USplineComponent* Spline)
+{
+   //do some logic to make this work
+}
+
 void AAIWheeledVehiclePawn::ResetIncomingCollision()
 {
     IncomingCollision = false;

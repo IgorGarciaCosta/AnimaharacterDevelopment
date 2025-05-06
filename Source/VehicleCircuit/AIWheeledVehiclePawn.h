@@ -3,6 +3,8 @@
 #include "CoreMinimal.h"
 #include "WheeledVehiclePawn.h"
 #include "Components/BoxComponent.h"
+#include "Components/SplineComponent.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "AIWheeledVehiclePawn.generated.h"
 
 UCLASS()
@@ -48,6 +50,9 @@ public:
     UFUNCTION()
     void OnEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
         UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
+    UFUNCTION(BlueprintCallable)
+    float CalculateFowardVectorOffset(USplineComponent* Spline);
 
     // Retriggerable delay callback
     void ResetIncomingCollision();
