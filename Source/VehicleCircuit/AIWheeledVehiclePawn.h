@@ -45,6 +45,12 @@ public:
     UFUNCTION(BlueprintImplementableEvent)
     void Accelerate(float speed);
 
+    UFUNCTION(BlueprintImplementableEvent)
+    void PressBrake(float value);
+
+    UFUNCTION(BlueprintImplementableEvent)
+    void ReleaseBrake(float value);
+
     UFUNCTION()
     void OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
         UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
@@ -60,6 +66,9 @@ public:
     UFUNCTION(BlueprintCallable)
     void FindNextTargetPoint(USplineComponent* Spline);
 
+    UFUNCTION(BlueprintCallable)
+    void ControlSpeed(USplineComponent* Spline, float DeltaTime);
+
     // Retriggerable delay callback
     void ResetIncomingCollision();
 
@@ -67,6 +76,8 @@ public:
     void StartRetriggerableDelay(float Duration);
 
 private:
+    float LastTargetYaw = 0.f;
 
+    float OldThrottle = 0;
     void ManageVehicleSteering();
 };

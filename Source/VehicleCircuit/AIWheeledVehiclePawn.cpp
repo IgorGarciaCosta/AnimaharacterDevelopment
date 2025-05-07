@@ -8,7 +8,6 @@ AAIWheeledVehiclePawn::AAIWheeledVehiclePawn()
     PreCollisionDetector->SetupAttachment(Mesh);
 
     PreCollisionDetector->SetBoxExtent(FVector(200.f, 200.f, 100.f));
-    PreCollisionDetector->SetCollisionProfileName(TEXT("Trigger"));
     PreCollisionDetector->SetGenerateOverlapEvents(true);
 
 
@@ -36,6 +35,8 @@ void AAIWheeledVehiclePawn::OnBeginOverlap(UPrimitiveComponent* OverlappedComp, 
     IncomingCollision = true;
     UE_LOG(LogTemp, Log, TEXT("Collision began with %s, IncomingCollision set to TRUE"), *GetNameSafe(OtherActor));
 
+    PressBrake(1);
+
     // Start retriggerable delay with random duration between 3 and 7 seconds
     float RandomDuration = FMath::FRandRange(3.0f, 7.0f);
     StartRetriggerableDelay(RandomDuration);
@@ -44,7 +45,9 @@ void AAIWheeledVehiclePawn::OnBeginOverlap(UPrimitiveComponent* OverlappedComp, 
 void AAIWheeledVehiclePawn::OnEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
     UE_LOG(LogTemp, Log, TEXT("Collision ended with %s"), *GetNameSafe(OtherActor));
-    // Optionally handle end overlap if needed
+    IncomingCollision = false;  
+
+    ReleaseBrake(0);
 }
 
 float AAIWheeledVehiclePawn::CalculateFowardVectorOffset(USplineComponent* Spline)
@@ -157,10 +160,67 @@ void AAIWheeledVehiclePawn::FindNextTargetPoint(USplineComponent* Spline)
     
 }
 
+
+void AAIWheeledVehiclePawn::ControlSpeed(USplineComponent* Spline, float DeltaTime)
+{
+    if (!Spline || NextSplinePoint.IsZero() || IncomingCollision)
+    {
+        Accelerate(0.f);
+        return;
+    }
+
+    // Obtem o quadro "até 300 unidades na frente"
+    float ForwardOffset = 2000.f;
+
+    float ClosestInputKey = Spline->FindInputKeyClosestToWorldLocation(GetActorLocation());
+    float DistanceAlongSpline = Spline->GetDistanceAlongSplineAtSplineInputKey(ClosestInputKey);
+    float SplineLength = Spline->GetSplineLength();
+
+    float TargetDistance = DistanceAlongSpline + ForwardOffset;
+    if (TargetDistance > SplineLength) TargetDistance -= SplineLength;
+
+    // Obter localização exata no spline
+    FVector PointAhead = Spline->GetLocationAtDistanceAlongSpline(TargetDistance, ESplineCoordinateSpace::World);
+    DrawDebugSphere(
+        GetWorld(),
+        PointAhead,
+        50.f,            // Raio da esfera: 50 unidades
+        12,              // Número de segmentos da esfera
+        FColor::Red,     // Cor vermelha para chamar atenção
+        false,           // Não persistente, aparece só uma frame
+        0.f,             // Duração de 5 segundos para visualização
+        0,               // Profundidade padrão
+        1.5f             // Espessura da linha
+    );
+
+    FRotator RotationAtPoint = Spline->GetRotationAtDistanceAlongSpline(TargetDistance, ESplineCoordinateSpace::World);
+    float CurrentYaw = RotationAtPoint.Yaw;
+
+    // Calcula a diferença absoluta entre o yaw atual e o último
+    float YawDifference = FMath::Abs(FMath::FindDeltaAngleDegrees(LastTargetYaw, CurrentYaw));
+    // Normaliza YawDifference [0, MaxYawDiff] para [0, 1]
+    float NormalizedYawDiff = FMath::Clamp(YawDifference, 0.f, 1.f);
+    
+    // Inverte o valor: ângulo pequeno -> throttle alto, ângulo grande -> throttle baixo
+    float TargetThrottle = FMath::Abs((1 - NormalizedYawDiff));
+    if(TargetThrottle>=0.5)TargetThrottle -=0.4;
+
+    // Atualiza para próximo tick
+    LastTargetYaw = CurrentYaw;
+
+    Accelerate(TargetThrottle);
+
+    UE_LOG(LogTemp, Log, TEXT("AdaptiveSpeed: YawDiff=%.2f,NormalizedYawDiff=%.2f, Throttle=%.3f"), YawDifference, NormalizedYawDiff, TargetThrottle);
+}
+
 void AAIWheeledVehiclePawn::ResetIncomingCollision()
 {
-    IncomingCollision = false;
-    UE_LOG(LogTemp, Log, TEXT("Retriggerable delay ended, IncomingCollision set to FALSE"));
+    
+    if (IncomingCollision) {
+        // Start retriggerable delay with random duration between 3 and 7 seconds
+        float RandomDuration = FMath::FRandRange(3.0f, 7.0f);
+        StartRetriggerableDelay(RandomDuration);
+    }
 }
 
 void AAIWheeledVehiclePawn::StartRetriggerableDelay(float Duration)
