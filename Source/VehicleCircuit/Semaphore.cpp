@@ -1,27 +1,115 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
-#include "Semaphore.h"
+﻿#include "Semaphore.h"
+#include "Components/StaticMeshComponent.h"
+#include "Components/BoxComponent.h"
+#include "AIWheeledVehiclePawn.h"
+#include "TimerManager.h"
+#include "Engine/World.h"
 
 // Sets default values
 ASemaphore::ASemaphore()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+    PrimaryActorTick.bCanEverTick = true;
 
+    // Criar mesh estático do semáforo
+    SemaphoreMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SemaphoreMesh"));
+    RootComponent = SemaphoreMesh;
+
+    // Criar BoxCollision para detectar veículos
+    BoxCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxCollision"));
+    BoxCollision->SetupAttachment(RootComponent);
+    BoxCollision->SetBoxExtent(FVector(300.f, 300.f, 300.f)); // Ajuste conforme necessário
+    BoxCollision->SetCollisionProfileName(TEXT("Trigger"));
+    BoxCollision->SetGenerateOverlapEvents(true);
+
+    
 }
 
-// Called when the game starts or when spawned
 void ASemaphore::BeginPlay()
 {
-	Super::BeginPlay();
-	
+    Super::BeginPlay();
+
+    // Começa com estado aleatório de 1 a 3
+    CurrentSemaphoreState = FMath::RandRange(1, 3);
+    ChangeSemaphoreColor(CurrentSemaphoreState);
+    SendSemaphoreStatusToVehicles(CurrentSemaphoreState);
+
+    // Inicia a máquina de estados
+    RunSemaphoreStateMachine();
+
+    BoxCollision->OnComponentBeginOverlap.AddDynamic(this, &ASemaphore::OnBoxBeginOverlap);
+    BoxCollision->OnComponentEndOverlap.AddDynamic(this, &ASemaphore::OnBoxEndOverlap);
 }
 
-// Called every frame
 void ASemaphore::Tick(float DeltaTime)
 {
-	Super::Tick(DeltaTime);
-
+    Super::Tick(DeltaTime);
 }
 
+void ASemaphore::RunSemaphoreStateMachine()
+{
+    // Proximo estado (ciclo 1→2→3→1)
+    CurrentSemaphoreState = (CurrentSemaphoreState % 3) + 1;
+
+    ChangeSemaphoreColor(CurrentSemaphoreState);
+    SendSemaphoreStatusToVehicles(CurrentSemaphoreState);
+
+    if (CurrentSemaphoreState == 3) // por exemplo, verde, pedestres param, quando muda torne pedestres andar
+    {
+        MakePedestriansWalk();
+    }
+
+    // Agenda próxima mudança baseada no tempo da cor atual
+    float Delay = GetDelayForState(CurrentSemaphoreState);
+    GetWorldTimerManager().SetTimer(SemaphoreTimerHandle, this, &ASemaphore::RunSemaphoreStateMachine, Delay, false);
+}
+
+float ASemaphore::GetDelayForState(int32 State) const
+{
+    switch (State)
+    {
+    case 1: // Vermelho
+        return 3.f;
+    case 2: // Amarelo
+        return 2.f;
+    case 3: // Verde
+        return 5.f;
+    default:
+        return 3.f;
+    }
+}
+
+void ASemaphore::SendSemaphoreStatusToVehicles(int32 Status)
+{
+    for (AAIWheeledVehiclePawn* Vehicle : VehiclesInBox)
+    {
+        if (Vehicle)
+        {
+            Vehicle->SetSemaphoreValue(Status);
+        }
+    }
+}
+
+// Quando veículo entra na área
+void ASemaphore::OnBoxBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
+    UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
+    bool bFromSweep, const FHitResult& SweepResult)
+{
+    AAIWheeledVehiclePawn* Vehicle = Cast<AAIWheeledVehiclePawn>(OtherActor);
+    if (Vehicle)
+    {
+        VehiclesInBox.Add(Vehicle);
+        SendSemaphoreStatusToVehicles(CurrentSemaphoreState); // envia status atualizado para todos
+    }
+}
+
+// Quando veículo sai da área
+void ASemaphore::OnBoxEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
+    UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+    AAIWheeledVehiclePawn* Vehicle = Cast<AAIWheeledVehiclePawn>(OtherActor);
+    if (Vehicle)
+    {
+        Vehicle->SetSemaphoreValue(0); // resetar status no veículo
+        VehiclesInBox.Remove(Vehicle);
+    }
+}

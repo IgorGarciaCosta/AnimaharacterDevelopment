@@ -278,3 +278,9 @@ void AAIWheeledVehiclePawn::ManageVehicleSteering()
     
 
 }
+
+void AAIWheeledVehiclePawn::SetSemaphoreValue(int32 Status)
+{
+
+    //TODO:logic here
+}

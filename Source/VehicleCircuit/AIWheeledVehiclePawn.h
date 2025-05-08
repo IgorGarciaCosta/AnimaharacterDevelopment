@@ -75,9 +75,12 @@ public:
     // Starts/reset the retriggerable delay timer
     void StartRetriggerableDelay(float Duration);
 
+    void SetSemaphoreValue(int32 Status);
 private:
     float LastTargetYaw = 0.f;
     float PriorThrottle = 0.f;
     float OldThrottle = 0;
     void ManageVehicleSteering();
+
+    
 };
