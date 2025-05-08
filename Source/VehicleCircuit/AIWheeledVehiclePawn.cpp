@@ -170,7 +170,7 @@ void AAIWheeledVehiclePawn::ControlSpeed(USplineComponent* Spline, float DeltaTi
     }
 
     // Obtem o quadro "até 300 unidades na frente"
-    float ForwardOffset = 2000.f;
+    float ForwardOffset = 800.f;
 
     float ClosestInputKey = Spline->FindInputKeyClosestToWorldLocation(GetActorLocation());
     float DistanceAlongSpline = Spline->GetDistanceAlongSplineAtSplineInputKey(ClosestInputKey);
@@ -199,18 +199,35 @@ void AAIWheeledVehiclePawn::ControlSpeed(USplineComponent* Spline, float DeltaTi
     // Calcula a diferença absoluta entre o yaw atual e o último
     float YawDifference = FMath::Abs(FMath::FindDeltaAngleDegrees(LastTargetYaw, CurrentYaw));
     // Normaliza YawDifference [0, MaxYawDiff] para [0, 1]
-    float NormalizedYawDiff = FMath::Clamp(YawDifference, 0.f, 1.f);
+    float NormalizedYawDiff = FMath::Clamp(YawDifference, 0.f, .4f);
     
     // Inverte o valor: ângulo pequeno -> throttle alto, ângulo grande -> throttle baixo
-    float TargetThrottle = FMath::Abs((1 - NormalizedYawDiff));
-    if(TargetThrottle>=0.5)TargetThrottle -=0.4;
+    float TargetThrottle = FMath::Abs((.4 - NormalizedYawDiff));
+    //if(TargetThrottle>=0.5)TargetThrottle -=0.4;
 
     // Atualiza para próximo tick
     LastTargetYaw = CurrentYaw;
 
-    Accelerate(TargetThrottle);
+    
 
-    UE_LOG(LogTemp, Log, TEXT("AdaptiveSpeed: YawDiff=%.2f,NormalizedYawDiff=%.2f, Throttle=%.3f"), YawDifference, NormalizedYawDiff, TargetThrottle);
+    // Diferenciar taxa de variação para desacelerar e acelerar
+    float changeRate;
+
+    if (TargetThrottle < PriorThrottle) // Está desacelerando
+    {
+        changeRate = 3.f; // taxa maior de variação, desacelera rápido
+    }
+    else // Está acelerando
+    {
+        changeRate = 1.f;  // taxa normal
+    }
+
+    float FinalThrottle = PriorThrottle - FMath::Abs((PriorThrottle-TargetThrottle)*changeRate);
+    if (FinalThrottle <= 0)FinalThrottle = 0.001;
+    Accelerate(FinalThrottle);
+
+    PriorThrottle = TargetThrottle;
+    UE_LOG(LogTemp, Log, TEXT("AdaptiveSpeed: YawDiff=%.2f,NormalizedYawDiff=%.2f, Throttle=%.3f"), YawDifference, NormalizedYawDiff, FinalThrottle);
 }
 
 void AAIWheeledVehiclePawn::ResetIncomingCollision()

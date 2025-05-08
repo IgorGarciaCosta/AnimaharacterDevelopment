@@ -77,7 +77,7 @@ public:
 
 private:
     float LastTargetYaw = 0.f;
-
+    float PriorThrottle = 0.f;
     float OldThrottle = 0;
     void ManageVehicleSteering();
 };
