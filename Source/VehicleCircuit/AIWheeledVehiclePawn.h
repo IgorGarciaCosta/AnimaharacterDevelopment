@@ -49,7 +49,7 @@ public:
     void PressBrake(float value);
 
     UFUNCTION(BlueprintImplementableEvent)
-    void ReleaseBrake(float value);
+    void ReleaseBrake();
 
     UFUNCTION()
     void OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,

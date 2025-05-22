@@ -1,5 +1,6 @@
 #include "AIWheeledVehiclePawn.h"
 #include "TimerManager.h"
+#include "ChaosWheeledVehicleMovementComponent.h"
 #include "Engine/World.h"
 
 AAIWheeledVehiclePawn::AAIWheeledVehiclePawn()
@@ -47,7 +48,7 @@ void AAIWheeledVehiclePawn::OnEndOverlap(UPrimitiveComponent* OverlappedComp, AA
     UE_LOG(LogTemp, Log, TEXT("Collision ended with %s"), *GetNameSafe(OtherActor));
     IncomingCollision = false;  
 
-    ReleaseBrake(0);
+    ReleaseBrake();
 }
 
 float AAIWheeledVehiclePawn::CalculateFowardVectorOffset(USplineComponent* Spline)
@@ -130,104 +131,80 @@ void AAIWheeledVehiclePawn::FindNextTargetPoint(USplineComponent* Spline)
         0,
         1.0f
     );
-
-    /*FVector VehicleWithForwardOffset = GetActorLocation() + (GetActorForwardVector() * CalculateFowardVectorOffset(Spline));
-
-    FVector NextLoc = Spline->FindLocationClosestToWorldLocation(VehicleWithForwardOffset, ESplineCoordinateSpace::World);
-
-    float MultiplyFactor = 400;
-    if (bDriveOnRightLane) {
-        NextLoc = NextLoc+(GetActorRightVector() * MultiplyFactor);
-    }
-    else {
-        NextLoc = NextLoc + (GetActorRightVector() * (MultiplyFactor*-1));
-    }
-
-    NextSplinePoint = NextLoc;
-
-    DrawDebugSphere(
-        GetWorld(),
-        NextLoc,
-        100,
-        12,
-        FColor::Blue,
-        false,
-        0,
-        0,
-        1.0f
-    );*/
-
     
 }
 
-
 void AAIWheeledVehiclePawn::ControlSpeed(USplineComponent* Spline, float DeltaTime)
 {
-    if (!Spline || NextSplinePoint.IsZero() || IncomingCollision)
-    {
-        Accelerate(0.f);
-        return;
-    }
+    if (!Spline || IncomingCollision) return;
 
-    // Obtem o quadro "até 300 unidades na frente"
-    float ForwardOffset = 800.f;
+    float SampleDistance = 300.f;
+    float LookAheadDistance = 600.f;
+    float CurvatureThreshold = 0.06f;
+    float CurvatureBrakeThreshold = 0.02f;
 
-    float ClosestInputKey = Spline->FindInputKeyClosestToWorldLocation(GetActorLocation());
+    // Cast para acessar corretamente GetForwardSpeed()
+    UChaosWheeledVehicleMovementComponent* MoveComp = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovementComponent());
+    if (!MoveComp) return;
+
+    float CurrentSpeed = MoveComp->GetForwardSpeed();
+    float SpeedKmh = CurrentSpeed * 0.036f;
+    UE_LOG(LogTemp, Display, TEXT("Velocidade atual: %.1f km/h"), SpeedKmh);
+
+    FVector VehicleLocation = GetActorLocation();
+    float ClosestInputKey = Spline->FindInputKeyClosestToWorldLocation(VehicleLocation);
     float DistanceAlongSpline = Spline->GetDistanceAlongSplineAtSplineInputKey(ClosestInputKey);
     float SplineLength = Spline->GetSplineLength();
 
-    float TargetDistance = DistanceAlongSpline + ForwardOffset;
-    if (TargetDistance > SplineLength) TargetDistance -= SplineLength;
+    float FutureDistanceA = FMath::Fmod(DistanceAlongSpline + SampleDistance, SplineLength);
+    float FutureDistanceB = FMath::Fmod(DistanceAlongSpline + LookAheadDistance, SplineLength);
 
-    // Obter localização exata no spline
-    FVector PointAhead = Spline->GetLocationAtDistanceAlongSpline(TargetDistance, ESplineCoordinateSpace::World);
-    DrawDebugSphere(
-        GetWorld(),
-        PointAhead,
-        50.f,            // Raio da esfera: 50 unidades
-        12,              // Número de segmentos da esfera
-        FColor::Red,     // Cor vermelha para chamar atenção
-        false,           // Não persistente, aparece só uma frame
-        0.f,             // Duração de 5 segundos para visualização
-        0,               // Profundidade padrão
-        1.5f             // Espessura da linha
-    );
+    FVector TangentA = Spline->GetTangentAtDistanceAlongSpline(FutureDistanceA, ESplineCoordinateSpace::World).GetSafeNormal();
+    FVector TangentB = Spline->GetTangentAtDistanceAlongSpline(FutureDistanceB, ESplineCoordinateSpace::World).GetSafeNormal();
 
-    FRotator RotationAtPoint = Spline->GetRotationAtDistanceAlongSpline(TargetDistance, ESplineCoordinateSpace::World);
-    float CurrentYaw = RotationAtPoint.Yaw;
+    float AngleDiff = FMath::Acos(FVector::DotProduct(TangentA, TangentB));
+    float Curvature = FMath::RadiansToDegrees(AngleDiff) / 180.f;
 
-    // Calcula a diferença absoluta entre o yaw atual e o último
-    float YawDifference = FMath::Abs(FMath::FindDeltaAngleDegrees(LastTargetYaw, CurrentYaw));
-    // Normaliza YawDifference [0, MaxYawDiff] para [0, 1]
-    float NormalizedYawDiff = FMath::Clamp(YawDifference, 0.f, .4f);
-    
-    // Inverte o valor: ângulo pequeno -> throttle alto, ângulo grande -> throttle baixo
-    float TargetThrottle = FMath::Abs((.4 - NormalizedYawDiff));
-    //if(TargetThrottle>=0.5)TargetThrottle -=0.4;
-
-    // Atualiza para próximo tick
-    LastTargetYaw = CurrentYaw;
-
-    
-
-    // Diferenciar taxa de variação para desacelerar e acelerar
-    float changeRate;
-
-    if (TargetThrottle < PriorThrottle) // Está desacelerando
-    {
-        changeRate = 3.f; // taxa maior de variação, desacelera rápido
-    }
-    else // Está acelerando
-    {
-        changeRate = 1.f;  // taxa normal
+    if (FMath::Abs(SpeedKmh) > 60.f) {//avoid getting too fast
+        Accelerate(0.0f);
+        return;
     }
 
-    float FinalThrottle = PriorThrottle - FMath::Abs((PriorThrottle-TargetThrottle)*changeRate);
-    if (FinalThrottle <= 0)FinalThrottle = 0.001;
-    Accelerate(FinalThrottle);
+    // Se estiver parado ou quase parado, força aceleração mínima
+    if (FMath::Abs(SpeedKmh) < 20.f) // tolerância pra "quase parado"
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Veículo parado, acelerando suavemente. Curvatura: %f"), Curvature);
+        ReleaseBrake();
+        Accelerate(0.4f);
+        return;
+    }
 
-    PriorThrottle = TargetThrottle;
-    UE_LOG(LogTemp, Log, TEXT("AdaptiveSpeed: YawDiff=%.2f,NormalizedYawDiff=%.2f, Throttle=%.3f"), YawDifference, NormalizedYawDiff, FinalThrottle);
+    // Lógica de aceleração/freio com base na curvatura
+    if (Curvature > CurvatureThreshold && SpeedKmh>30)
+    {
+        UE_LOG(LogTemp, Log, TEXT("Curva aberta detectada. Curvatura: %f"), Curvature);
+        Accelerate(0.3f);
+        ReleaseBrake();
+    }
+    else if (Curvature > CurvatureBrakeThreshold && SpeedKmh > 30)
+    {
+        UE_LOG(LogTemp, Log, TEXT("Curva fechada detectada. Curvatura: %f"), Curvature);
+        PressBrake(0.2f);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Log, TEXT("Reta detectada. Curvatura: %f"), Curvature);
+        ReleaseBrake();
+        Accelerate(0.5f);
+    }
+
+    // Debug visual
+    FVector DebugPoint = Spline->GetLocationAtDistanceAlongSpline(FutureDistanceB, ESplineCoordinateSpace::World);
+    DrawDebugSphere(GetWorld(), DebugPoint, 100, 12, FColor::Red, false, 0.f, 0, 2.f);
+
+    
+    
+
 }
 
 void AAIWheeledVehiclePawn::ResetIncomingCollision()
