@@ -29,7 +29,7 @@ void ASemaphore::BeginPlay()
     Super::BeginPlay();
 
     // Começa com estado aleatório de 1 a 3
-    CurrentSemaphoreState = FMath::RandRange(1, 3);
+    CurrentSemaphoreState = SemaphoreBeginState;// FMath::RandRange(1, 3);
     ChangeSemaphoreColor(CurrentSemaphoreState);
     SendSemaphoreStatusToVehicles(CurrentSemaphoreState);
 
@@ -59,7 +59,7 @@ void ASemaphore::RunSemaphoreStateMachine()
     ChangeSemaphoreColor(CurrentSemaphoreState);
     SendSemaphoreStatusToVehicles(CurrentSemaphoreState);
 
-    if (CurrentSemaphoreState == 3) // verde → pedestres podem andar
+    if (CurrentSemaphoreState == 1 && FMath::FRand() < 0.75f) // vermelho → pedestres podem andar
     {
         MakePedestriansWalk();
     }

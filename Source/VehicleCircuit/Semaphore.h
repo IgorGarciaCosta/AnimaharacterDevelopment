@@ -29,6 +29,9 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     UBoxComponent* BoxCollision;
 
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+    float SemaphoreBeginState = 1;
+
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "timers")
     float RedDelay = 10;
 
