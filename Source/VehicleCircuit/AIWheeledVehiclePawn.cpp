@@ -32,6 +32,9 @@ void AAIWheeledVehiclePawn::OnBeginOverlap(UPrimitiveComponent* OverlappedComp, 
     UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
     bool bFromSweep, const FHitResult& SweepResult)
 {
+    // Verifica se o ator é outro veículo do mesmo tipo
+    if (!Cast<AAIWheeledVehiclePawn>(OtherActor)) return;
+
     // Set collision flag true
     IncomingCollision = true;
     UE_LOG(LogTemp, Log, TEXT("Collision began with %s, IncomingCollision set to TRUE"), *GetNameSafe(OtherActor));
@@ -45,6 +48,9 @@ void AAIWheeledVehiclePawn::OnBeginOverlap(UPrimitiveComponent* OverlappedComp, 
 
 void AAIWheeledVehiclePawn::OnEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
+    // Verifica se o ator é outro veículo do mesmo tipo
+    if (!Cast<AAIWheeledVehiclePawn>(OtherActor)) return;
+
     UE_LOG(LogTemp, Log, TEXT("Collision ended with %s"), *GetNameSafe(OtherActor));
     IncomingCollision = false;  
 
@@ -136,7 +142,7 @@ void AAIWheeledVehiclePawn::FindNextTargetPoint(USplineComponent* Spline)
 
 void AAIWheeledVehiclePawn::ControlSpeed(USplineComponent* Spline, float DeltaTime)
 {
-    if (!Spline || IncomingCollision) return;
+    if (!Spline || IncomingCollision || bIsWaitingSemaphore) return;
 
     float SampleDistance = 300.f;
     float LookAheadDistance = 600.f;
@@ -259,5 +265,20 @@ void AAIWheeledVehiclePawn::ManageVehicleSteering()
 void AAIWheeledVehiclePawn::SetSemaphoreValue(int32 Status)
 {
 
-    //TODO:logic here
+    switch (Status)
+    {
+    case 1://red
+        bIsWaitingSemaphore = true;
+        PressHandBrake(true);
+        Accelerate(0);
+        break;
+    case 2://yellow
+        break;
+    case 3://green
+        bIsWaitingSemaphore = false;
+        PressHandBrake(false);
+        break;
+    default:
+        break;
+    }
 }

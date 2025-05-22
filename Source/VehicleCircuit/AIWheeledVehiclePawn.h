@@ -27,6 +27,8 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Collision")
     bool IncomingCollision = false;
 
+    bool bIsWaitingSemaphore = false;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spline")
     FVector NextSplinePoint = FVector(0, 0, 0);
 
@@ -47,6 +49,9 @@ public:
 
     UFUNCTION(BlueprintImplementableEvent)
     void PressBrake(float value);
+
+    UFUNCTION(BlueprintImplementableEvent)
+    void PressHandBrake(bool IsPressed);
 
     UFUNCTION(BlueprintImplementableEvent)
     void ReleaseBrake();

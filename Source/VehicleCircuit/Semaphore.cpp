@@ -47,32 +47,38 @@ void ASemaphore::Tick(float DeltaTime)
 
 void ASemaphore::RunSemaphoreStateMachine()
 {
-    // Proximo estado (ciclo 1→2→3→1)
-    CurrentSemaphoreState = (CurrentSemaphoreState % 3) + 1;
+    // Define a transição de estados: 1 → 3 → 2 → 1 ...
+    switch (CurrentSemaphoreState)
+    {
+    case 1: CurrentSemaphoreState = 3; break; // vermelho → verde
+    case 3: CurrentSemaphoreState = 2; break; // verde → amarelo
+    case 2: CurrentSemaphoreState = 1; break; // amarelo → vermelho
+    default: CurrentSemaphoreState = 1; break; // fallback
+    }
 
     ChangeSemaphoreColor(CurrentSemaphoreState);
     SendSemaphoreStatusToVehicles(CurrentSemaphoreState);
 
-    if (CurrentSemaphoreState == 3) // por exemplo, verde, pedestres param, quando muda torne pedestres andar
+    if (CurrentSemaphoreState == 3) // verde → pedestres podem andar
     {
         MakePedestriansWalk();
     }
 
-    // Agenda próxima mudança baseada no tempo da cor atual
     float Delay = GetDelayForState(CurrentSemaphoreState);
     GetWorldTimerManager().SetTimer(SemaphoreTimerHandle, this, &ASemaphore::RunSemaphoreStateMachine, Delay, false);
 }
+
 
 float ASemaphore::GetDelayForState(int32 State) const
 {
     switch (State)
     {
     case 1: // Vermelho
-        return 3.f;
+        return RedDelay;
     case 2: // Amarelo
-        return 2.f;
+        return YellowDelay;
     case 3: // Verde
-        return 5.f;
+        return GreenDelay;
     default:
         return 3.f;
     }

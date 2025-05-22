@@ -29,6 +29,16 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     UBoxComponent* BoxCollision;
 
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "timers")
+    float RedDelay = 10;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "timers")
+    float YellowDelay = 5;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "timers")
+    float GreenDelay = 5;
+
+
 private:
     // Estado atual do semáforo (1=vermelho, 2=amarelo, 3=verde)
     int32 CurrentSemaphoreState;
