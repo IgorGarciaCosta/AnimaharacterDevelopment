@@ -1,5 +1,6 @@
 #include "AIWheeledVehiclePawn.h"
 #include "TimerManager.h"
+#include "Kismet/GameplayStatics.h"
 #include "ChaosWheeledVehicleMovementComponent.h"
 #include "Engine/World.h"
 
@@ -40,6 +41,7 @@ void AAIWheeledVehiclePawn::OnBeginOverlap(UPrimitiveComponent* OverlappedComp, 
     UE_LOG(LogTemp, Log, TEXT("Collision began with %s, IncomingCollision set to TRUE"), *GetNameSafe(OtherActor));
 
     PressBrake(1);
+    PlayHorn();
 
     // Start retriggerable delay with random duration between 3 and 7 seconds
     float RandomDuration = FMath::FRandRange(3.0f, 7.0f);
@@ -146,6 +148,7 @@ void AAIWheeledVehiclePawn::ControlSpeed(USplineComponent* Spline, float DeltaTi
 
     float SampleDistance = 300.f;
     float LookAheadDistance = 600.f;
+    float LookAheadForTurnSign = 3000.f;
     float CurvatureThreshold = 0.06f;
     float CurvatureBrakeThreshold = 0.02f;
 
@@ -164,12 +167,29 @@ void AAIWheeledVehiclePawn::ControlSpeed(USplineComponent* Spline, float DeltaTi
 
     float FutureDistanceA = FMath::Fmod(DistanceAlongSpline + SampleDistance, SplineLength);
     float FutureDistanceB = FMath::Fmod(DistanceAlongSpline + LookAheadDistance, SplineLength);
+    float FutureDistanceC = FMath::Fmod(DistanceAlongSpline + LookAheadForTurnSign, SplineLength);
+
 
     FVector TangentA = Spline->GetTangentAtDistanceAlongSpline(FutureDistanceA, ESplineCoordinateSpace::World).GetSafeNormal();
     FVector TangentB = Spline->GetTangentAtDistanceAlongSpline(FutureDistanceB, ESplineCoordinateSpace::World).GetSafeNormal();
+    FVector TangentC = Spline->GetTangentAtDistanceAlongSpline(FutureDistanceC, ESplineCoordinateSpace::World).GetSafeNormal();
+
 
     float AngleDiff = FMath::Acos(FVector::DotProduct(TangentA, TangentB));
+    float AngleDiffForTurnSign = FMath::Acos(FVector::DotProduct(TangentA, TangentC));
+
     float Curvature = FMath::RadiansToDegrees(AngleDiff) / 180.f;
+    float CurvatureForTurnSign = FMath::RadiansToDegrees(AngleDiffForTurnSign) / 180.f;
+
+
+    //left or right calc
+    FVector CrossDir = FVector::CrossProduct(TangentA, TangentB);
+    float CurveDirSign = FMath::Sign(CrossDir.Z);
+
+    FVector CrossDirTurnSign = FVector::CrossProduct(TangentA, TangentC);
+    float CurveDirTurnSign = FMath::Sign(CrossDir.Z);
+
+
 
     if (FMath::Abs(SpeedKmh) > 60.f) {//avoid getting too fast
         Accelerate(0.0f);
@@ -209,7 +229,27 @@ void AAIWheeledVehiclePawn::ControlSpeed(USplineComponent* Spline, float DeltaTi
     DrawDebugSphere(GetWorld(), DebugPoint, 100, 12, FColor::Red, false, 0.f, 0, 2.f);
 
     
-    
+    //blink logic
+    const float BlinkerThreshold = 0.02f;   // mesmo valor de CurvatureBrakeThreshold
+
+    if (CurvatureForTurnSign > BlinkerThreshold)
+    {
+        if (CurveDirTurnSign > 0.f)        // curva para DIREITA 
+        {
+            BlinkTurnLeft(false);
+            BlinkTurnRight(true);
+        }
+        else if (CurveDirTurnSign < 0.f)   // curva para ESQUERDA
+        {
+            BlinkTurnLeft(true);
+            BlinkTurnRight(false);
+        }
+    }
+    else    // Reta – apaga ambos
+    {
+        BlinkTurnLeft(false);
+        BlinkTurnRight(false);
+    }
 
 }
 
@@ -280,5 +320,13 @@ void AAIWheeledVehiclePawn::SetSemaphoreValue(int32 Status)
         break;
     default:
         break;
+    }
+}
+
+void AAIWheeledVehiclePawn::PlayHorn()
+{
+    if (HornAudio)
+    {
+        UGameplayStatics::PlaySoundAtLocation(this, HornAudio, GetActorLocation());
     }
 }

@@ -4,6 +4,7 @@
 #include "WheeledVehiclePawn.h"
 #include "Components/BoxComponent.h"
 #include "Components/SplineComponent.h"
+#include "Sound/SoundBase.h"      // Som de buzina
 #include "Kismet/KismetMathLibrary.h"
 #include "AIWheeledVehiclePawn.generated.h"
 
@@ -38,8 +39,22 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spline")
     bool bMoveClockwise = true;
 
+    UPROPERTY(EditAnywhere, Category = "Audio")
+    USoundBase* HornAudio;
+
     // Timer handle for retriggerable delay
     FTimerHandle IncomingCollisionTimerHandle;
+
+    /*  Toca a buzina (C++ ou BP) */
+    UFUNCTION(BlueprintCallable)
+    void PlayHorn();
+
+    /*  Piscas – implementados em Blueprint  */
+    UFUNCTION(BlueprintImplementableEvent)
+    void BlinkTurnLeft(bool Blink);
+
+    UFUNCTION(BlueprintImplementableEvent)
+    void BlinkTurnRight(bool Blink);
 
     UFUNCTION(BlueprintImplementableEvent)
     void Steer(float steer);
